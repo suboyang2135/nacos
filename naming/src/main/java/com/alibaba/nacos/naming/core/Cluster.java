@@ -230,15 +230,21 @@ public class Cluster extends com.alibaba.nacos.api.naming.pojo.Cluster implement
     }
     
     /**
+     * 更新指定clusterName中的Instance实例
      * Update instance list.
      *
      * @param ips       instance list
      * @param ephemeral whether these instances are ephemeral
      */
     public void updateIps(List<Instance> ips, boolean ephemeral) {
-        
+
+        // 判断是否是临时实例
+        // ephemeralInstances  临时实例
+        // persistentInstances 持久实例
+        // 把对应的数据先取出来，放入到新创建的 toUpdateInstances 集合中
         Set<Instance> toUpdateInstances = ephemeral ? ephemeralInstances : persistentInstances;
-        
+
+        // 先把老的实例列表复制一份
         HashMap<String, Instance> oldIpMap = new HashMap<>(toUpdateInstances.size());
         
         for (Instance ip : toUpdateInstances) {
@@ -293,9 +299,11 @@ public class Cluster extends com.alibaba.nacos.api.naming.pojo.Cluster implement
                 HealthCheckStatus.remv(ip);
             }
         }
-        
+
+        // 最后把传入的实例列表，重新初始化为一个HashSet，并赋值给toUpdateInstances
         toUpdateInstances = new HashSet<>(ips);
-        
+
+        // 根据是否是临时实例替换不同的实例集合
         if (ephemeral) {
             ephemeralInstances = toUpdateInstances;
         } else {
