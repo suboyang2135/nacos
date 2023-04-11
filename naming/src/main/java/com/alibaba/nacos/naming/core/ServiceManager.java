@@ -674,6 +674,7 @@ public class ServiceManager implements RecordListener<Service> {
      */
     public void removeInstance(String namespaceId, String serviceName, boolean ephemeral, Instance... ips)
             throws NacosException {
+        // 从本地注册表中获取Service，调用放已做空判断，所以此处一定可以获取到实例
         Service service = getService(namespaceId, serviceName);
         
         synchronized (service) {
@@ -683,14 +684,18 @@ public class ServiceManager implements RecordListener<Service> {
     
     private void removeInstance(String namespaceId, String serviceName, boolean ephemeral, Service service,
             Instance... ips) throws NacosException {
-        
+
+        // 获取key值
         String key = KeyBuilder.buildInstanceListKey(namespaceId, serviceName, ephemeral);
-        
+
+        // 移除Instance，并返回当前健康Instance集合
         List<Instance> instanceList = substractIpAddresses(service, ephemeral, ips);
-        
+
+        // 将Instance集合包装成 Instances
         Instances instances = new Instances();
         instances.setInstanceList(instanceList);
-        
+
+        // 更新服务
         consistencyService.put(key, instances);
     }
     

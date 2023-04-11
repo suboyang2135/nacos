@@ -146,6 +146,7 @@ public class InstanceController {
     }
     
     /**
+     * 服务剔除
      * Deregister instances.
      *
      * @param request http request
@@ -156,17 +157,20 @@ public class InstanceController {
     @DeleteMapping
     @Secured(parser = NamingResourceParser.class, action = ActionTypes.WRITE)
     public String deregister(HttpServletRequest request) throws Exception {
+        // 从request中获取Instance实例
         Instance instance = getIpAddress(request);
         String namespaceId = WebUtils.optional(request, CommonParams.NAMESPACE_ID, Constants.DEFAULT_NAMESPACE_ID);
         String serviceName = WebUtils.required(request, CommonParams.SERVICE_NAME);
         NamingUtils.checkServiceNameFormat(serviceName);
-        
+
+        // 从本地注册表中获取Service实例
         Service service = serviceManager.getService(namespaceId, serviceName);
         if (service == null) {
             Loggers.SRV_LOG.warn("remove instance from non-exist service: {}", serviceName);
             return "ok";
         }
-        
+
+        // 移除服务
         serviceManager.removeInstance(namespaceId, serviceName, instance.isEphemeral(), instance);
         return "ok";
     }
