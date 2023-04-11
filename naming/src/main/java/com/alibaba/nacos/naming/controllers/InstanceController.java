@@ -470,6 +470,8 @@ public class InstanceController {
         result.put(SwitchEntry.CLIENT_BEAT_INTERVAL, switchDomain.getClientBeatInterval());
         
         String beat = WebUtils.optional(request, "beat", StringUtils.EMPTY);
+
+        // 获取请求参数：namespaceId、serviceName
         RsInfo clientBeat = null;
         if (StringUtils.isNotBlank(beat)) {
             clientBeat = JacksonUtils.toObj(beat, RsInfo.class);
@@ -492,8 +494,11 @@ public class InstanceController {
         String serviceName = WebUtils.required(request, CommonParams.SERVICE_NAME);
         NamingUtils.checkServiceNameFormat(serviceName);
         Loggers.SRV_LOG.debug("[CLIENT-BEAT] full arguments: beat: {}, serviceName: {}", clientBeat, serviceName);
+
+        // 通过namespaceId、serviceName等信息，从内存注册表中获取 Instance 实例对象
         Instance instance = serviceManager.getInstance(namespaceId, serviceName, clusterName, ip, port);
-        
+
+        // 如果获取的实例为空，会重新调用注册的方法
         if (instance == null) {
             if (clientBeat == null) {
                 result.put(CommonParams.CODE, NamingResponseCode.RESOURCE_NOT_FOUND);
@@ -512,10 +517,12 @@ public class InstanceController {
             instance.setServiceName(serviceName);
             instance.setInstanceId(instance.getInstanceId());
             instance.setEphemeral(clientBeat.isEphemeral());
-            
+
+            // 重新注册服务
             serviceManager.registerInstance(namespaceId, serviceName, instance);
         }
-        
+
+        // 获取 Service
         Service service = serviceManager.getService(namespaceId, serviceName);
         
         if (service == null) {
@@ -528,6 +535,8 @@ public class InstanceController {
             clientBeat.setPort(port);
             clientBeat.setCluster(clusterName);
         }
+
+        // 提交客户端心跳操作任务，更改 lastBeat 属性
         service.processClientBeat(clientBeat);
         
         result.put(CommonParams.CODE, NamingResponseCode.OK);

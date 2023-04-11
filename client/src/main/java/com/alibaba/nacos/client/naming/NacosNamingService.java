@@ -361,7 +361,9 @@ public class NacosNamingService implements NamingService {
             boolean subscribe) throws NacosException {
         
         ServiceInfo serviceInfo;
+        // subscribe 默认为true
         if (subscribe) {
+            // 获取服务实例
             serviceInfo = hostReactor.getServiceInfo(NamingUtils.getGroupedName(serviceName, groupName),
                     StringUtils.join(clusters, ","));
         } else {

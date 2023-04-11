@@ -318,15 +318,18 @@ public class HostReactor implements Closeable {
         if (failoverReactor.isFailoverSwitch()) {
             return failoverReactor.getService(key);
         }
-        
+
+        // 从本地缓存中获取实例
         ServiceInfo serviceObj = getServiceInfo0(serviceName, clusters);
-        
+
+        // 本地缓存为空
         if (null == serviceObj) {
             serviceObj = new ServiceInfo(serviceName, clusters);
             
             serviceInfoMap.put(serviceObj.getKey(), serviceObj);
-            
+
             updatingMap.put(serviceName, new Object());
+            // 立即更新实例，此处会调用Nacos /List接口获取实例
             updateServiceNow(serviceName, clusters);
             updatingMap.remove(serviceName);
             
@@ -344,9 +347,11 @@ public class HostReactor implements Closeable {
                 }
             }
         }
-        
+
+        // 启动定时任务更新本地缓存
         scheduleUpdateIfAbsent(serviceName, clusters);
-        
+
+        // 最终从本地缓存中获取实例
         return serviceInfoMap.get(serviceObj.getKey());
     }
     
@@ -386,12 +391,15 @@ public class HostReactor implements Closeable {
      * @param clusters    clusters
      */
     public void updateService(String serviceName, String clusters) throws NacosException {
+        // 获取本地缓存实例
         ServiceInfo oldService = getServiceInfo0(serviceName, clusters);
         try {
-            
+            // 调用Nacos /list接口获取实例
             String result = serverProxy.queryList(serviceName, clusters, pushReceiver.getUdpPort(), false);
-            
+
+            // 接口返回实例不为空
             if (StringUtils.isNotEmpty(result)) {
+                // json转换，更新本地缓存
                 processServiceJson(result);
             }
         } finally {

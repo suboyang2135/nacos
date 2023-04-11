@@ -83,13 +83,17 @@ public class ClientBeatCheckTask implements Runnable {
             if (!getSwitchDomain().isHealthCheckEnabled()) {
                 return;
             }
-            
+
+            // 获取所有的临时实例
             List<Instance> instances = service.allIPs(true);
             
             // first set health status of instances:
+            // 遍历所有的Instance实例
             for (Instance instance : instances) {
+                // 如果当前事件 - 实例最后的心跳事件 > 实例心跳超时事件
                 if (System.currentTimeMillis() - instance.getLastBeat() > instance.getInstanceHeartBeatTimeOut()) {
                     if (!instance.isMarked()) {
+                        // 当前实例的健康的，标记为不健康，同时发布实例变更事件和实例心跳超时事件
                         if (instance.isHealthy()) {
                             instance.setHealthy(false);
                             Loggers.EVT_LOG
@@ -114,11 +118,13 @@ public class ClientBeatCheckTask implements Runnable {
                 if (instance.isMarked()) {
                     continue;
                 }
-                
+
+                // 如果当前时间 - 实例最后心跳时间 > 心跳剔除时间
                 if (System.currentTimeMillis() - instance.getLastBeat() > instance.getIpDeleteTimeout()) {
                     // delete instance
                     Loggers.SRV_LOG.info("[AUTO-DELETE-IP] service: {}, ip: {}", service.getName(),
                             JacksonUtils.toJson(instance));
+                    // 直接把对应的Instance从注册表中删除
                     deleteIp(instance);
                 }
             }
