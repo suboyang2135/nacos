@@ -46,10 +46,13 @@ public class DistroDelayTaskProcessor implements NacosTaskProcessor {
         if (!(task instanceof DistroDelayTask)) {
             return true;
         }
+        // 任务对象转换为DistroDelayTask
         DistroDelayTask distroDelayTask = (DistroDelayTask) task;
         DistroKey distroKey = distroDelayTask.getDistroKey();
         if (DataOperation.CHANGE.equals(distroDelayTask.getAction())) {
+            // 包装成DistroSyncChangeTask对象
             DistroSyncChangeTask syncChangeTask = new DistroSyncChangeTask(distroKey, distroComponentHolder);
+            // 添加到任务队列中
             distroTaskEngineHolder.getExecuteWorkersManager().addTask(distroKey, syncChangeTask);
             return true;
         }

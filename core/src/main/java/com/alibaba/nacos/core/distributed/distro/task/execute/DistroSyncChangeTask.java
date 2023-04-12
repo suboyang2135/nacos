@@ -41,11 +41,14 @@ public class DistroSyncChangeTask extends AbstractDistroExecuteTask {
     public void run() {
         Loggers.DISTRO.info("[DISTRO-START] {}", toString());
         try {
+            // 构建请求参数
             String type = getDistroKey().getResourceType();
             DistroData distroData = distroComponentHolder.findDataStorage(type).getDistroData(getDistroKey());
             distroData.setType(DataOperation.CHANGE);
+            // syncData http方式，同步数据
             boolean result = distroComponentHolder.findTransportAgent(type).syncData(distroData, getDistroKey().getTargetServer());
             if (!result) {
+                // 重试
                 handleFailedTask();
             }
             Loggers.DISTRO.info("[DISTRO-END] {} result: {}", toString(), result);

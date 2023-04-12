@@ -62,7 +62,9 @@ public class NacosDelayTaskExecuteEngine extends AbstractNacosTaskExecuteEngine<
     public NacosDelayTaskExecuteEngine(String name, int initCapacity, Logger logger, long processInterval) {
         super(logger);
         tasks = new ConcurrentHashMap<Object, AbstractDelayTask>(initCapacity);
+        // 初始化延时任务线程池
         processingExecutor = ExecutorFactory.newSingleScheduledExecutorService(new NameThreadFactory(name));
+        // 开启延时任务
         processingExecutor
                 .scheduleWithFixedDelay(new ProcessRunnable(), processInterval, processInterval, TimeUnit.MILLISECONDS);
     }
@@ -127,6 +129,7 @@ public class NacosDelayTaskExecuteEngine extends AbstractNacosTaskExecuteEngine<
             if (null != existTask) {
                 newTask.merge(existTask);
             }
+            // 放入ConcurrentHashMap中
             tasks.put(key, newTask);
         } finally {
             lock.unlock();
@@ -137,12 +140,15 @@ public class NacosDelayTaskExecuteEngine extends AbstractNacosTaskExecuteEngine<
      * process tasks in execute engine.
      */
     protected void processTasks() {
+        // 获取task中的所有数据，并进行遍历
         Collection<Object> keys = getAllTaskKeys();
         for (Object taskKey : keys) {
+            // 删除的同时，拿到对应的同步任务
             AbstractDelayTask task = removeTask(taskKey);
             if (null == task) {
                 continue;
             }
+            // 通过taskKey获取Nacos处理对象
             NacosTaskProcessor processor = getProcessor(taskKey);
             if (null == processor) {
                 getEngineLog().error("processor not found for task, so discarded. " + task);
@@ -150,7 +156,9 @@ public class NacosDelayTaskExecuteEngine extends AbstractNacosTaskExecuteEngine<
             }
             try {
                 // ReAdd task if process failed
+                // 将 task 任务放入到第二层队列中
                 if (!processor.process(task)) {
+                    // 如果失败了，会重试同步
                     retryFailedTask(taskKey, task);
                 }
             } catch (Throwable e) {
@@ -170,6 +178,7 @@ public class NacosDelayTaskExecuteEngine extends AbstractNacosTaskExecuteEngine<
         @Override
         public void run() {
             try {
+                // 处理任务
                 processTasks();
             } catch (Throwable e) {
                 getEngineLog().error(e.toString(), e);

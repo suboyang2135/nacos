@@ -67,6 +67,7 @@ public final class TaskExecuteWorker implements NacosTaskProcessor, Closeable {
     @Override
     public boolean process(NacosTask task) {
         if (task instanceof AbstractExecuteTask) {
+            // 放入队列中
             putTask((Runnable) task);
         }
         return true;
