@@ -76,10 +76,12 @@ public class ClientBeatCheckTask implements Runnable {
     @Override
     public void run() {
         try {
+            // 集群状态下，判断自身节点是否需要执行心跳健康检查任务，不需要则之间返回
             if (!getDistroMapper().responsible(service.getName())) {
                 return;
             }
-            
+
+            // 是否开启健康检查的配置，默认是true
             if (!getSwitchDomain().isHealthCheckEnabled()) {
                 return;
             }

@@ -38,11 +38,12 @@ public class ServerStatusSynchronizer implements Synchronizer {
         if (StringUtils.isEmpty(serverIP)) {
             return;
         }
-        
+
+        // 构建请求参数
         final Map<String, String> params = new HashMap<String, String>(2);
         
         params.put("serverStatus", msg.getData());
-        
+        // 拼装请求地址
         String url = "http://" + serverIP + ":" + EnvUtil.getPort() + EnvUtil.getContextPath()
                 + UtilsAndCommons.NACOS_NAMING_CONTEXT + "/operator/server/status";
         
@@ -52,6 +53,7 @@ public class ServerStatusSynchronizer implements Synchronizer {
         }
         
         try {
+            // 发送异步GET请求， url地址：http://ip:port/v1/ns/service/status，同步心跳健康检查结果
             HttpClient.asyncHttpGet(url, null, params, new Callback<String>() {
                 @Override
                 public void onReceive(RestResult<String> result) {

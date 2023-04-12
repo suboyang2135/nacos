@@ -81,12 +81,16 @@ public class DistroMapper extends MemberChangeListener {
      * @return true if input service is response, otherwise false
      */
     public boolean responsible(String serviceName) {
+
+        // 获取集群节点数据
         final List<String> servers = healthyList;
-        
+
+        // 如果是单机模式启动，则返回true
         if (!switchDomain.isDistroEnabled() || EnvUtil.getStandaloneMode()) {
             return true;
         }
-        
+
+        // 没有可用的健康集群节点，返回false
         if (CollectionUtils.isEmpty(servers)) {
             // means distro config is not ready yet
             return false;
@@ -98,7 +102,8 @@ public class DistroMapper extends MemberChangeListener {
         if (lastIndex < 0 || index < 0) {
             return true;
         }
-        
+
+        // 对serviceName进行Hash操作，然后跟servers进行取模，最终只有一个节点可以返回true
         int target = distroHash(serviceName) % servers.size();
         return target >= index && target <= lastIndex;
     }
