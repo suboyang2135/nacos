@@ -117,6 +117,7 @@ public class NacosClusterController {
             return RestResultUtils.failedWithMsg(400, "Node information is illegal");
         }
         LoggerUtils.printIfDebugEnabled(Loggers.CLUSTER, "node state report, receive info : {}", node);
+        // 能够正常请求节点信息，直接设置状态为 NodeState.UP
         node.setState(NodeState.UP);
         node.setFailAccessCnt(0);
         

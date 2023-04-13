@@ -207,12 +207,17 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
         }
         
         serverList.computeIfPresent(address, (s, member) -> {
+            // 如果服务节点不健康，则直接移除
             if (NodeState.DOWN.equals(newMember.getState())) {
                 memberAddressInfos.remove(newMember.getAddress());
             }
+            // 对比信息是否有改变
             boolean isPublishChangeEvent = MemberUtil.isBasicInfoChanged(newMember, member);
+            // 设置 lastRefreshTime 为当前时间
             newMember.setExtendVal(MemberMetaDataConstants.LAST_REFRESH_TIME, System.currentTimeMillis());
+            // 更新属性信息
             MemberUtil.copy(newMember, member);
+            // 如果信息有改变，需要发布相关事件通知
             if (isPublishChangeEvent) {
                 // member basic data changes and all listeners need to be notified
                 notifyMemberChange();
@@ -388,7 +393,9 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
     
     @Override
     public void onApplicationEvent(WebServerInitializedEvent event) {
+        // 默认节点状态为UP
         getSelf().setState(NodeState.UP);
+        // 集群状态下，启动节点心跳任务
         if (!EnvUtil.getStandaloneMode()) {
             GlobalExecutor.scheduleByCommon(this.infoReportTask, 5_000L);
         }
@@ -449,22 +456,26 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
         
         @Override
         protected void executeBody() {
+            // 获取除自身节点以外的其他节点信息
             List<Member> members = ServerMemberManager.this.allMembersWithoutSelf();
             
             if (members.isEmpty()) {
                 return;
             }
-            
+
+            // 轮询请求
             this.cursor = (this.cursor + 1) % members.size();
             Member target = members.get(cursor);
             
             Loggers.CLUSTER.debug("report the metadata to the node : {}", target.getAddress());
-            
+
+            // 获取url参数
             final String url = HttpUtils
                     .buildUrl(false, target.getAddress(), EnvUtil.getContextPath(), Commons.NACOS_CORE_CONTEXT,
                             "/cluster/report");
             
             try {
+                // 发起http请求
                 Header header = Header.newInstance().addParam(Constants.NACOS_SERVER_HEADER, VersionUtils.version);
                 AuthHeaderUtil.addIdentityToHeader(header);
                 asyncRestTemplate
@@ -479,6 +490,7 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
                                                             target, VersionUtils.version);
                                             return;
                                         }
+                                        // 请求成功，设置状态 NodeState.UP；请求失败，设置状态 NodeState.DOWN
                                         if (result.ok()) {
                                             MemberUtil.onSuccess(ServerMemberManager.this, target);
                                         } else {
@@ -495,12 +507,13 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
                                                 .error("failed to report new info to target node : {}, error : {}",
                                                         target.getAddress(),
                                                         ExceptionUtil.getAllExceptionMsg(throwable));
+                                        // 请求失败，设置状态 NodeState.DOWN
                                         MemberUtil.onFail(ServerMemberManager.this, target, throwable);
                                     }
                                     
                                     @Override
                                     public void onCancel() {
-                                    
+                                        // 取消则什么都不做
                                     }
                                 });
             } catch (Throwable ex) {
