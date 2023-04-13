@@ -59,6 +59,7 @@ public class DistroProtocol {
         this.distroComponentHolder = distroComponentHolder;
         this.distroTaskEngineHolder = distroTaskEngineHolder;
         this.distroConfig = distroConfig;
+        // 开启定时任务
         startDistroTask();
     }
     
@@ -70,8 +71,12 @@ public class DistroProtocol {
         startVerifyTask();
         startLoadTask();
     }
-    
+
+    /**
+     * 数据加载定时任务
+     */
     private void startLoadTask() {
+        // 数据加载回调方法，主要是修改 isInitialized 标识是否初始化成功
         DistroCallback loadCallback = new DistroCallback() {
             @Override
             public void onSuccess() {

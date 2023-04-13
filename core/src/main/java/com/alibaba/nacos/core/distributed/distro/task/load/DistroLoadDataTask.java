@@ -97,14 +97,18 @@ public class DistroLoadDataTask implements Runnable {
                     resourceType, transportAgent, dataProcessor);
             return false;
         }
+        // 遍历除自身节点以外的其他节点的信息
         for (Member each : memberManager.allMembersWithoutSelf()) {
             try {
                 Loggers.DISTRO.info("[DISTRO-INIT] load snapshot {} from {}", resourceType, each.getAddress());
+                // 通过HTTP方式获取其他集群节点的数据
                 DistroData distroData = transportAgent.getDatumSnapshot(each.getAddress());
+                // 操作返回结果，同步自身节点内存注册表
                 boolean result = dataProcessor.processSnapshot(distroData);
                 Loggers.DISTRO
                         .info("[DISTRO-INIT] load snapshot {} from {} result: {}", resourceType, each.getAddress(),
                                 result);
+                // 只要有一个节点数据同步成功，就结束循环
                 if (result) {
                     return true;
                 }
