@@ -154,6 +154,7 @@ public class ConfigServletInner {
                     if (PropertyUtil.isDirectRead()) {
                         configInfoBase = persistService.findConfigInfo4Beta(dataId, group, tenant);
                     } else {
+                        // 获取磁盘上的文件数据
                         file = DiskUtil.targetBetaFile(dataId, group, tenant);
                     }
                     response.setHeader("isBeta", "true");

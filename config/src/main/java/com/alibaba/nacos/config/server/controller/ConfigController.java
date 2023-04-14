@@ -189,6 +189,7 @@ public class ConfigController {
     }
     
     /**
+     * 获取配置信息
      * Get configure board information fail.
      *
      * @throws ServletException ServletException.
@@ -210,6 +211,7 @@ public class ConfigController {
         ParamUtils.checkParam(tag);
         
         final String clientIp = RequestUtil.getRemoteIp(request);
+        // 读取配置的核心方法
         inner.doGetConfig(request, response, dataId, group, tenant, tag, clientIp);
     }
     

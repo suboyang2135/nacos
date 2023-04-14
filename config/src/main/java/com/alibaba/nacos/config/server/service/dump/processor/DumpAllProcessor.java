@@ -51,6 +51,7 @@ public class DumpAllProcessor implements NacosTaskProcessor {
         long currentMaxId = persistService.findConfigMaxId();
         long lastMaxId = 0;
         while (lastMaxId < currentMaxId) {
+            // 分页查询配置信息
             Page<ConfigInfoWrapper> page = persistService.findAllConfigInfoFragment(lastMaxId, PAGE_SIZE);
             if (page != null && page.getPageItems() != null && !page.getPageItems().isEmpty()) {
                 for (ConfigInfoWrapper cf : page.getPageItems()) {
@@ -67,7 +68,8 @@ public class DumpAllProcessor implements NacosTaskProcessor {
                     if (cf.getDataId().equals(SwitchService.SWITCH_META_DATAID)) {
                         SwitchService.load(cf.getContent());
                     }
-                    
+
+                    // 将查询到的数据写入磁盘
                     boolean result = ConfigCacheService
                             .dump(cf.getDataId(), cf.getGroup(), cf.getTenant(), cf.getContent(), cf.getLastModified(),
                                     cf.getType());

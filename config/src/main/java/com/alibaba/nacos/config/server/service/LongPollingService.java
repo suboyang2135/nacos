@@ -330,6 +330,8 @@ public class LongPollingService {
         public void run() {
             try {
                 ConfigCacheService.getContentBetaMd5(groupKey);
+
+                // 遍历订阅的客户端
                 for (Iterator<ClientLongPolling> iter = allSubs.iterator(); iter.hasNext(); ) {
                     ClientLongPolling clientSub = iter.next();
                     if (clientSub.clientMd5Map.containsKey(groupKey)) {
@@ -350,6 +352,7 @@ public class LongPollingService {
                                         RequestUtil
                                                 .getRemoteIp((HttpServletRequest) clientSub.asyncContext.getRequest()),
                                         "polling", clientSub.clientMd5Map.size(), clientSub.probeRequestSize, groupKey);
+                        // 响应客户端数据变更
                         clientSub.sendResponse(Arrays.asList(groupKey));
                     }
                 }

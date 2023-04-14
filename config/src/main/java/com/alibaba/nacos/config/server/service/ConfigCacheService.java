@@ -96,6 +96,7 @@ public class ConfigCacheService {
                                 + "lastModifiedNew={}", groupKey, md5, ConfigCacheService.getLastModifiedTs(groupKey),
                         lastModifiedTs);
             } else if (!PropertyUtil.isDirectRead()) {
+                // 持久化到磁盘中
                 DiskUtil.saveToDisk(dataId, group, tenant, content);
             }
             updateMd5(groupKey, md5, lastModifiedTs);

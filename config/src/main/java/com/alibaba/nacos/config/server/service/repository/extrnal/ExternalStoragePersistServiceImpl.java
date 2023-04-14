@@ -235,6 +235,7 @@ public class ExternalStoragePersistServiceImpl implements PersistService {
             final Timestamp time, final Map<String, Object> configAdvanceInfo, final boolean notify) {
         boolean result = tjt.execute(status -> {
             try {
+                // 查询老的配置数据
                 ConfigInfo oldConfigInfo = findConfigInfo(configInfo.getDataId(), configInfo.getGroup(),
                         configInfo.getTenant());
                 String appNameTmp = oldConfigInfo.getAppName();
@@ -245,6 +246,7 @@ public class ExternalStoragePersistServiceImpl implements PersistService {
                 if (configInfo.getAppName() == null) {
                     configInfo.setAppName(appNameTmp);
                 }
+                // 更新配置数据
                 updateConfigInfoAtomic(configInfo, srcIp, srcUser, time, configAdvanceInfo);
                 String configTags = configAdvanceInfo == null ? null : (String) configAdvanceInfo.get("config_tags");
                 if (configTags != null) {
@@ -253,6 +255,7 @@ public class ExternalStoragePersistServiceImpl implements PersistService {
                     addConfigTagsRelation(oldConfigInfo.getId(), configTags, configInfo.getDataId(),
                             configInfo.getGroup(), configInfo.getTenant());
                 }
+                // 保存到历史数据表
                 insertConfigHistoryAtomic(oldConfigInfo.getId(), oldConfigInfo, srcIp, srcUser, time, "U");
             } catch (CannotGetJdbcConnectionException e) {
                 LogUtil.FATAL_LOG.error("[db-error] " + e.toString(), e);

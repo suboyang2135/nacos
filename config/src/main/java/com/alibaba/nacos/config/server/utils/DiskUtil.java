@@ -118,6 +118,7 @@ public class DiskUtil {
     }
     
     /**
+     * 获取服务端的缓存文件
      * Returns the path of cache file in server.
      */
     public static File targetBetaFile(String dataId, String group, String tenant) {
