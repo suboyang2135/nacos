@@ -85,6 +85,7 @@ public class RaftConsistencyServiceImpl implements PersistentConsistencyService 
     public void put(String key, Record value) throws NacosException {
         checkIsStopWork();
         try {
+            // raft核心方法
             raftCore.signalPublish(key, value);
         } catch (Exception e) {
             Loggers.RAFT.error("Raft put failed.", e);

@@ -182,11 +182,14 @@ public class RaftPeerSet extends MemberChangeListener implements Closeable {
      * @return new leader if new candidate has more than half vote, otherwise old leader
      */
     public RaftPeer decideLeader(RaftPeer candidate) {
+        // 记录投票结果
         peers.put(candidate.ip, candidate);
         
         SortedBag ips = new TreeBag();
         int maxApproveCount = 0;
         String maxApprovePeer = null;
+
+        // 统计累计票数
         for (RaftPeer peer : peers.values()) {
             if (StringUtils.isEmpty(peer.voteFor)) {
                 continue;
@@ -198,13 +201,15 @@ public class RaftPeerSet extends MemberChangeListener implements Closeable {
                 maxApprovePeer = peer.voteFor;
             }
         }
-        
+
+        // 判断投票数量是否超过半数，超过，则将自身状态设置为leader
         if (maxApproveCount >= majorityCount()) {
             RaftPeer peer = peers.get(maxApprovePeer);
             peer.state = RaftPeer.State.LEADER;
             
             if (!Objects.equals(leader, peer)) {
                 leader = peer;
+                // 发起投票结束时间
                 ApplicationUtils.publishEvent(new LeaderElectFinishedEvent(this, leader, local()));
                 Loggers.RAFT.info("{} has become the LEADER", leader.ip);
             }

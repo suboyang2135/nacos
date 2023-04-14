@@ -169,8 +169,10 @@ public class RaftCore implements Closeable {
         initialized = true;
         
         Loggers.RAFT.info("finish to load data from disk, cost: {} ms.", (System.currentTimeMillis() - start));
-        
+
+        // leader选举
         masterTask = GlobalExecutor.registerMasterElection(new MasterElection());
+        // 心跳数据同步
         heartbeatTask = GlobalExecutor.registerHeartbeat(new HeartBeat());
         
         versionJudgement.registerObserver(isAllNewVersion -> {
@@ -206,15 +208,19 @@ public class RaftCore implements Closeable {
         if (stopWork) {
             throw new IllegalStateException("old raft protocol already stop work");
         }
+        // 判断自己不是Leader
         if (!isLeader()) {
+            // 构建请求参数
             ObjectNode params = JacksonUtils.createEmptyJsonNode();
             params.put("key", key);
             params.replace("value", JacksonUtils.transferToJsonNode(value));
             Map<String, String> parameters = new HashMap<>(1);
             parameters.put("key", key);
-            
+
+            // 获取Leader节点信息
             final RaftPeer leader = getLeader();
-            
+
+            // 转发给Leader
             raftProxy.proxyPostLarge(leader.ip, API_PUB, params.toString(), parameters);
             return;
         }
@@ -234,18 +240,23 @@ public class RaftCore implements Closeable {
             ObjectNode json = JacksonUtils.createEmptyJsonNode();
             json.replace("datum", JacksonUtils.transferToJsonNode(datum));
             json.replace("source", JacksonUtils.transferToJsonNode(peers.local()));
-            
+
+            // leader 节点本身处理数据，把注册信息写入磁盘以及内存
             onPublish(datum, peers.local());
             
             final String content = json.toString();
             
             final CountDownLatch latch = new CountDownLatch(peers.majorityCount());
+            // 同步信息给其他节点
             for (final String server : peers.allServersIncludeMyself()) {
+                // 是leader节点，直接跳过
                 if (isLeader(server)) {
                     latch.countDown();
                     continue;
                 }
+                // 构建请求url
                 final String url = buildUrl(server, API_ON_PUB);
+                // http异步通知
                 HttpClient.asyncHttpPostLarge(url, Arrays.asList("key", key), content, new Callback<String>() {
                     @Override
                     public void onReceive(RestResult<String> result) {
@@ -255,22 +266,24 @@ public class RaftCore implements Closeable {
                                             datum.key, server, result.getCode());
                             return;
                         }
+                        // 同步成功
                         latch.countDown();
                     }
-                    
+
                     @Override
                     public void onError(Throwable throwable) {
                         Loggers.RAFT.error("[RAFT] failed to publish data to peer", throwable);
                     }
-                    
+
                     @Override
                     public void onCancel() {
-                    
+
                     }
                 });
-                
+
             }
-            
+
+            // latch.await 等待半数集群节点同步成功
             if (!latch.await(UtilsAndCommons.RAFT_PUBLISH_TIMEOUT, TimeUnit.MILLISECONDS)) {
                 // only majority servers return success can we consider this update success
                 Loggers.RAFT.error("data publish failed, caused failed to notify majority, key={}", key);
@@ -381,9 +394,11 @@ public class RaftCore implements Closeable {
         
         // if data should be persisted, usually this is true:
         if (KeyBuilder.matchPersistentKey(datum.key)) {
+            // 此处Raft会先将数据写入到本地文件当中
             raftStore.write(datum);
         }
-        
+
+        // 缓存同步
         datums.put(datum.key, datum);
         
         if (isLeader()) {
@@ -398,6 +413,7 @@ public class RaftCore implements Closeable {
             }
         }
         raftStore.updateTerm(local.term.get());
+        // 通过发布事件来同步内存注册表、与注册的逻辑一样
         NotifyCenter.publishEvent(ValueChangeEvent.builder().key(datum.key).action(DataOperation.CHANGE).build());
         Loggers.RAFT.info("data added/updated, key={}, term={}", datum.key, local.term);
     }
@@ -479,10 +495,12 @@ public class RaftCore implements Closeable {
                 if (!peers.isReady()) {
                     return;
                 }
-                
+
+                // 随机休眠
                 RaftPeer local = peers.local();
                 local.leaderDueMs -= GlobalExecutor.TICK_PERIOD_MS;
-                
+
+                // 休眠时间没有到直接返回
                 if (local.leaderDueMs > 0) {
                     return;
                 }
@@ -490,14 +508,18 @@ public class RaftCore implements Closeable {
                 // reset timeout
                 local.resetLeaderDue();
                 local.resetHeartbeatDue();
-                
+
+                // 发起投票
                 sendVote();
             } catch (Exception e) {
                 Loggers.RAFT.warn("[RAFT] error while master election {}", e);
             }
             
         }
-        
+
+        /**
+         * Raft选举发起投票
+         */
         private void sendVote() {
             
             RaftPeer local = peers.get(NetUtils.localServer());
@@ -505,16 +527,22 @@ public class RaftCore implements Closeable {
                     local.term);
             
             peers.reset();
-            
+
+            // 选举周期+1
             local.term.incrementAndGet();
+            // 投票给自己
             local.voteFor = local.ip;
+            // 角色转变为CANDIDATE
             local.state = RaftPeer.State.CANDIDATE;
-            
+
+            // 组装参数
             Map<String, String> params = new HashMap<>(1);
             params.put("vote", JacksonUtils.toJson(local));
+            // 给除自己之外的所有节点发送信息
             for (final String server : peers.allServersWithoutMySelf()) {
                 final String url = buildUrl(server, API_VOTE);
                 try {
+                    // 进行投票
                     HttpClient.asyncHttpPost(url, null, params, new Callback<String>() {
                         @Override
                         public void onReceive(RestResult<String> result) {
@@ -526,7 +554,8 @@ public class RaftCore implements Closeable {
                             RaftPeer peer = JacksonUtils.toObj(result.getData(), RaftPeer.class);
                             
                             Loggers.RAFT.info("received approve from peer: {}", JacksonUtils.toJson(peer));
-                            
+
+                            // 处理投票结果
                             peers.decideLeader(peer);
                             
                         }
@@ -604,7 +633,8 @@ public class RaftCore implements Closeable {
                 }
                 
                 local.resetHeartbeatDue();
-                
+
+                // 发送心跳
                 sendBeat();
             } catch (Exception e) {
                 Loggers.RAFT.warn("[RAFT] error while sending beat {}", e);
